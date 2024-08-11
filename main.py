@@ -141,26 +141,33 @@ class SentimentAnalyzer:
         chat_session = model.start_chat(
             history=[
                 {"role": "user", "parts": ["Analyze the sentiment of the following text: 'I love this product!'"]},
-                {"role": "model", "parts": ["The sentiment of the text 'I love this product!' is positive. The use of the word 'love' expresses a strong positive emotion towards the product."]},
+                {"role": "model", "parts": ["The sentiment of the text 'I love this product!' is happy. The use of the word 'love' expresses a strong positive emotion towards the product."]},
                 {"role": "user", "parts": ["Analyze the sentiment of the following text: 'This is the worst experience ever.'"]},
                 {"role": "model", "parts": ["The sentiment of the text 'This is the worst experience ever.' is negative. The use of the word 'worst' indicates a very negative perception of the experience."]},
             ]
         )
-        
-        response = chat_session.send_message(f"Analyze the sentiment of the following text: '{text}'. Respond with just one word: POSITIVE, NEGATIVE, or NEUTRAL.")
+
+        response = chat_session.send_message(f"Analyze the sentiment of the following text: '{text}'. Respond with just one of in 80 human emotional states")
         return response.text.strip()
 
 
 class ImageOCR:
     def __init__(self):
-        self.model = model  # Use the globally defined model
         self.file_processor = FileProcessor()
         self.video_downloader = VideoDownloader()
 
     def get_file_extension(self, url: str) -> str:
         """Gets the file extension from the given URL."""
-        path = urlparse(url).path
-        return os.path.splitext(path)[1].lower()
+        last_slash = url.rfind('/')
+        if last_slash == -1:
+            return ""
+        
+        filename = url[last_slash + 1:]
+        last_dot = filename.rfind('.')
+        if last_dot == -1:
+            return ""
+        
+        return filename[last_dot:].lower()
 
     def process_image(self, url: str, language: str) -> str:
         """Processes an image from the given URL and performs OCR."""
@@ -169,32 +176,31 @@ class ImageOCR:
             return "Unsupported file format."
 
         filename = f"temp_image_{int(time.time())}{extension}"
-        downloaded_file = self.video_downloader.download_video(url, filename)
-
-        if not downloaded_file:
-            return "Failed to download the image."
-
-        mime_type = "image/png" if extension == '.png' else "image/jpeg"
-        file = self.file_processor.upload_to_gemini(downloaded_file, mime_type=mime_type)
-
-        if not file:
-            os.remove(downloaded_file)
-            return "Failed to upload the image to Gemini."
-
-        self.file_processor.wait_for_files_active([file])
-
-        chat_session = self.model.start_chat(history=[
-            {"role": "user", "parts": [file]},
-            {"role": "user", "parts": [f"OCR {language} this image:"]},
-        ])
-
+        
         try:
+            self.video_downloader.download_video(url, filename)
+            
+            mime_type = "image/png" if extension == '.png' else "image/jpeg"
+            file = self.file_processor.upload_to_gemini(filename, mime_type=mime_type)
+            
+            if not file:
+                return "Failed to upload the image to Gemini."
+
+            self.file_processor.wait_for_files_active([file])
+
+            chat_session = model.start_chat(history=[
+                {"role": "user", "parts": [file]},
+                {"role": "user", "parts": [f"OCR {language} this image:"]},
+            ])
+
             response = chat_session.send_message(f"OCR {language} this image:")
             return response.text
+
         except Exception as e:
             return f"Error during OCR processing: {e}"
         finally:
-            os.remove(downloaded_file)
+            if os.path.exists(filename):
+                os.remove(filename)
 
 
 class ASLInterpreter:
@@ -204,11 +210,11 @@ class ASLInterpreter:
     def interpret(self, url_video: str) -> str:
         filename = "asl_video_to_interpret.mp4"
         VideoDownloader.download_video(url_video, filename)
-        
+
         file_to_interpret = FileProcessor.upload_to_gemini(filename, mime_type="video/mp4")
         FileProcessor.wait_for_files_active([file_to_interpret])
-        
-        chat_session = self.model.start_chat(
+
+        chat_session = model.start_chat(
             history=[
                 {"role": "user", "parts": ["You are an expert ASL interpreter. Your task is to watch videos of people using American Sign Language and provide accurate, detailed translations into written English."]},
                 {"role": "model", "parts": ["Understood. I am an expert ASL interpreter capable of watching videos of American Sign Language and providing accurate, detailed translations into written English. I will focus on the hand movements, facial expressions, and body language to interpret the signs and convey the full meaning of the communication."]},
@@ -217,10 +223,12 @@ class ASLInterpreter:
                 {"role": "user", "parts": [file_to_interpret]},
             ]
         )
-        
+
+
         response = chat_session.send_message("Please provide a detailed English translation of the ASL communication in this video, following the guidelines we discussed:")
         os.remove(filename)
         return response.text
+
 
 # Initialize services
 deepfake_detector = DeepfakeDetector()
