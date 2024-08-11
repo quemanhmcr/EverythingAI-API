@@ -132,9 +132,103 @@ class SpeechToTextConverter:
         os.remove(filename)
         return response.text
 
+class SentimentAnalyzer:
+    def __init__(self):
+        # Khởi tạo nếu cần
+        pass
+
+    def analyze(self, text: str) -> str:
+        chat_session = model.start_chat(
+            history=[
+                {"role": "user", "parts": ["Analyze the sentiment of the following text: 'I love this product!'"]},
+                {"role": "model", "parts": ["The sentiment of the text 'I love this product!' is positive. The use of the word 'love' expresses a strong positive emotion towards the product."]},
+                {"role": "user", "parts": ["Analyze the sentiment of the following text: 'This is the worst experience ever.'"]},
+                {"role": "model", "parts": ["The sentiment of the text 'This is the worst experience ever.' is negative. The use of the word 'worst' indicates a very negative perception of the experience."]},
+            ]
+        )
+        
+        response = chat_session.send_message(f"Analyze the sentiment of the following text: '{text}'. Respond with just one word: POSITIVE, NEGATIVE, or NEUTRAL.")
+        return response.text.strip()
+
+
+class ImageOCR:
+    def __init__(self):
+        self.model = model  # Use the globally defined model
+        self.file_processor = FileProcessor()
+        self.video_downloader = VideoDownloader()
+
+    def get_file_extension(self, url: str) -> str:
+        """Gets the file extension from the given URL."""
+        path = urlparse(url).path
+        return os.path.splitext(path)[1].lower()
+
+    def process_image(self, url: str, language: str) -> str:
+        """Processes an image from the given URL and performs OCR."""
+        extension = self.get_file_extension(url)
+        if extension not in ['.png', '.jpg', '.jpeg']:
+            return "Unsupported file format."
+
+        filename = f"temp_image_{int(time.time())}{extension}"
+        downloaded_file = self.video_downloader.download_video(url, filename)
+
+        if not downloaded_file:
+            return "Failed to download the image."
+
+        mime_type = "image/png" if extension == '.png' else "image/jpeg"
+        file = self.file_processor.upload_to_gemini(downloaded_file, mime_type=mime_type)
+
+        if not file:
+            os.remove(downloaded_file)
+            return "Failed to upload the image to Gemini."
+
+        self.file_processor.wait_for_files_active([file])
+
+        chat_session = self.model.start_chat(history=[
+            {"role": "user", "parts": [file]},
+            {"role": "user", "parts": [f"OCR {language} this image:"]},
+        ])
+
+        try:
+            response = chat_session.send_message(f"OCR {language} this image:")
+            return response.text
+        except Exception as e:
+            return f"Error during OCR processing: {e}"
+        finally:
+            os.remove(downloaded_file)
+
+
+class ASLInterpreter:
+    def __init__(self):
+        pass
+
+    def interpret(self, url_video: str) -> str:
+        filename = "asl_video_to_interpret.mp4"
+        VideoDownloader.download_video(url_video, filename)
+        
+        file_to_interpret = FileProcessor.upload_to_gemini(filename, mime_type="video/mp4")
+        FileProcessor.wait_for_files_active([file_to_interpret])
+        
+        chat_session = self.model.start_chat(
+            history=[
+                {"role": "user", "parts": ["You are an expert ASL interpreter. Your task is to watch videos of people using American Sign Language and provide accurate, detailed translations into written English."]},
+                {"role": "model", "parts": ["Understood. I am an expert ASL interpreter capable of watching videos of American Sign Language and providing accurate, detailed translations into written English. I will focus on the hand movements, facial expressions, and body language to interpret the signs and convey the full meaning of the communication."]},
+                {"role": "user", "parts": ["When interpreting ASL videos, please follow these guidelines:\n1. Pay close attention to hand shapes, movements, and positions.\n2. Note facial expressions and body language, as they are crucial for conveying emotion and meaning in ASL.\n3. Interpret not just individual signs, but the overall context and meaning of the communication.\n4. Provide a natural, fluent English translation that captures the intent and tone of the signer.\n5. If there are any signs or concepts that are unclear or ambiguous, mention this in your interpretation.\n6. Be sensitive to and accurately convey any cultural nuances specific to the Deaf community."]},
+                {"role": "model", "parts": ["Thank you for the detailed guidelines. I will adhere to them when interpreting ASL videos. I'm ready to interpret ASL videos with these principles in mind."]},
+                {"role": "user", "parts": [file_to_interpret]},
+            ]
+        )
+        
+        response = chat_session.send_message("Please provide a detailed English translation of the ASL communication in this video, following the guidelines we discussed:")
+        os.remove(filename)
+        return response.text
+
 # Initialize services
 deepfake_detector = DeepfakeDetector()
 speech_to_text_converter = SpeechToTextConverter()
+sentiment_analyzer = SentimentAnalyzer()
+image_ocr = ImageOCR()
+asl_interpreter = ASLInterpreter()
+
 
 @app.get("/detect_deepfake")
 def detect_deepfake(file_url: str):
@@ -152,6 +246,30 @@ def speech_to_text(file_url: str, language: str = "English"):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/analyze_sentiment")
+def analyze_sentiment(text: str):
+    try:
+        result = sentiment_analyzer.analyze(text)
+        return {"sentiment": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/ocr_image")
+async def ocr_image(url: str, language: str = "English"):
+    try:
+        result = image_ocr.process_image(url, language)
+        return {"ocr_result": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/interpret_asl")
+async def interpret_asl(url: str):
+    try:
+        result = asl_interpreter.interpret(url)
+        return {"asl_interpretation": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
