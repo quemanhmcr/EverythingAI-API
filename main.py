@@ -8,7 +8,6 @@ from fastapi import FastAPI, HTTPException
 app = FastAPI()
 
 # Configuration
-GEMINI_API_KEY = "AIzaSyAcJniPvMfJArheINs8yOXOzu7jq0HcFbE"
 MODEL_NAME = "gemini-1.5-flash"
 GENERATION_CONFIG = {
     "temperature": 1,
@@ -19,7 +18,7 @@ GENERATION_CONFIG = {
 }
 
 # Initialize Gemini API
-genai.configure(api_key=GEMINI_API_KEY)
+genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 model = genai.GenerativeModel(model_name=MODEL_NAME, generation_config=GENERATION_CONFIG)
 
 class FileProcessor:
