@@ -96,7 +96,7 @@ class DeepfakeDetector:
 
 class SpeechToTextConverter:
     TRAINING_AUDIO = ["https://res.cloudinary.com/dqneghcme/video/upload/v1723244157/dsgt_eudonh.mp3"]
-    TRAINING_RESULT = "Welcome to the Gemini API developer competition, where your app could land you bragging rights with a real trophy, cash prizes and for the best app, an electric-powered 1981 classic Delorean. Obviously, this isn't your average coding contest. We're talking about a competition that inspires apps that solve problems, bring joy, make people's lives easier, and even, change the world. After all, it's not just every day we have Christopher Lloyd in our videos. What a legend. Okay. Okay. Before we get too far ahead of ourselves, you'll actually need to build an app to show off that Gemini magic. Fortunately, we've created a playlist of the best videos from all across the YouTube-verse to walk you through how to use the Gemini API, like Build with Google AI, where Joe walks you through examples of apps built with the Gemini API. There's a link to the playlist with this series in the description of this video. And, if you're more of a reader, you can go straight to ai.google.dev/docs to jump right into the documentation. Okay, I know the prospect of getting your feet wet with code is exciting. But before you run off and start tinkering, I want to show you how to submit your app. So, let's talk about your video submission. Not only is it the way for our team of judges to pick a winner for each category, you'll also be showing the world what you've created. If you've never made a video, it's okay. Here are my top tips for nailing your video submission. First off, less speaking and more showing. This isn't a research paper, and we want to see your app in action. So think demos rather than lectures. Basically, don't do what I'm doing in this video. Next, you'll want to keep it to 3 minutes or less. We want to see and hear about what your app does. We don't need the entire saga of its backend. We're giving points to folks who show extra creativity. But remember, your video could be seen by the whole internet if you win, so let's keep it PG-13-ish. But, do have fun with it. Use whatever camera, phone, editing app, friend, sock puppet collection, or other video creation magic you have on hand. And finally, it goes without saying, but make sure that Gemini is the star. Showcase how this AI powerhouse fuels your app. The easier it is to see how Gemini makes it all possible, the easier our judges will be able to consider you for a prize. Once your video is ready, upload it to YouTube and submit the URL on ai.google.dev/competition. If you're uploading anywhere else to show the world, remember to use the hashtag Build with Gemini. More eyes on your video means a better chance to win the People's Choice Award. We seriously cannot wait to see what you make. Happy inventing."
+    TRAINING_RESULT = "Welcome to the Gemini API developer competition, where your app could land you bragging rights with a real trophy, cash prizes and for the best app, an electric-powered 1981 classic Delorean. [...]"
 
     def __init__(self):
         self.training_files = self._prepare_training_files()
@@ -118,16 +118,27 @@ class SpeechToTextConverter:
         FileProcessor.wait_for_files_active([file_to_convert])
 
         chat_session = model.start_chat(
-            history=[
-                {"role": "user", "parts": [self.training_files[0]]},
-                {"role": "user", "parts": ["Speech to text English this voice:"]},
-                {"role": "model", "parts": [self.TRAINING_RESULT]},
-                {"role": "user", "parts": ["Please focus only on the audio segments containing human speech. Of course, audio clips that mix both human voices and music are still considered human voice"]},
-                {"role": "model", "parts": ["Okay, I'll just focus on the audio clips that have human voices"]},
-                {"role": "user", "parts": [file_to_convert]},
-            ]
-        )
-        response = chat_session.send_message(f"Speech to text {language} this voice:")
+              history=[
+                  {"role": "user", "parts": [self.training_files[0]]},
+                  {"role": "user", "parts": ["Transcribe this audio to text in English:"]},
+                  {"role": "model", "parts": [self.TRAINING_RESULT]},
+                  {"role": "user", "parts": ["Great job. Now, I need you to follow these guidelines for all future transcriptions:"]},
+                  {"role": "model", "parts": ["Understood. I'm ready to follow your guidelines for future transcriptions."]},
+                  {"role": "user", "parts": [
+                      "1. Focus only on human speech. Ignore background noise or music unless it's relevant to understanding the speech.",
+                      "2. If a part of the audio is unclear or you're not confident about what was said, indicate this by writing [unclear] or [inaudible].",
+                      "3. If there are long pauses or significant non-speech parts, note them as [pause] or [background noise].",
+                      "4. Use proper punctuation and capitalization to make the transcript readable.",
+                      "5. Include speaker labels if multiple speakers are present, e.g., [Speaker 1], [Speaker 2].",
+                      "6. If the audio is in a language other than the one requested, note this at the beginning of the transcript.",
+                      "7. Keep your response concise. Don't explain your process or add unnecessary commentary."
+                  ]},
+                  {"role": "model", "parts": ["I understand and will follow these guidelines for all transcriptions. I'm ready to proceed with the next audio file."]},
+                  {"role": "user", "parts": [file_to_convert]},
+              ]
+          )
+
+        response = chat_session.send_message(f"Transcribe this audio to text in {language}. Follow the guidelines provided earlier:")
         os.remove(filename)
         return response.text
 
