@@ -23,7 +23,7 @@ https://test-xcrz.onrender.com
 
 ## 🧠 Context Injection Technique
 
-MultiAI leverages the Context Injection technique to optimize Gemini model performance:
+EverythingAI leverages the Imposing Context technique to optimize Gemini model performance:
 
 1. Creating simulated chat history to "train" the model.
 2. Providing specific instructions and examples for each task.
@@ -240,9 +240,3 @@ This project is licensed under the [MIT License](LICENSE).
 ## 📞 Contact
 
 For any inquiries or support, please contact our team at [quemanhmcr@gmail.com](quemanhmcr@gmail.com).
-
----
-
-⭐️ If you find MultiAI useful, don't forget to give it a star on GitHub!
-
-```
