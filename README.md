@@ -214,11 +214,11 @@ To set up the project locally for development or customization:
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/multiai.git
+   git clone https://github.com/quemanhmcr/EverythingAI-API.git
    ```
 2. Navigate to the project directory:
    ```
-   cd multiai
+   cd EverythingAI-API
    ```
 3. Install dependencies:
    ```
@@ -239,7 +239,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## 📞 Contact
 
-For any inquiries or support, please contact our team at [support@multiai.com](mailto:support@multiai.com).
+For any inquiries or support, please contact our team at [quemanhmcr@gmail.com](quemanhmcr@gmail.com).
 
 ---
 
